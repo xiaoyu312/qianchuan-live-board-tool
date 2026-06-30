@@ -391,7 +391,7 @@ async function capture(scheduledAt) {
     running = false;
     if (timer) clearTimeout(timer);
     nextText.textContent = "-";
-    statusText.textContent = "直播已结束，且最近 5 分钟数据没有变化，已自动停止";
+    statusText.textContent = `直播已结束，且最近 ${captureInterval()} 分钟数据没有变化，已自动停止`;
     lastText.textContent = "未写入重复行";
     return false;
   }

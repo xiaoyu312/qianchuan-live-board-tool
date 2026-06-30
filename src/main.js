@@ -53,7 +53,7 @@ const outputMetrics = metrics.flatMap((metric) =>
 );
 
 const cumulativeName = "直播大屏累计数据.csv";
-const intervalName = "直播大屏5分钟时段数据.csv";
+const intervalName = "直播大屏时段数据.csv";
 const rawName = "直播大屏采集日志.jsonl";
 
 function createWindow() {
