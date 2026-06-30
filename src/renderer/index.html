@@ -9,30 +9,34 @@
   <body>
     <aside class="panel">
       <header>
-        <div class="eyebrow">直播数据采集</div>
+        <div class="eyebrow">Qianchuan workspace</div>
         <h1>千川直播大屏采集工具</h1>
+        <p>内置浏览器采集直播大屏，数据先进入实时表，确认后再导出。</p>
       </header>
 
-      <section class="steps">
+      <section class="steps block">
+        <div class="block-title">流程</div>
         <div class="step"><b>1</b><span>登录千川账号</span></div>
         <div class="step"><b>2</b><span>进入直播大屏页面</span></div>
         <div class="step"><b>3</b><span>设置采集间隔、下播时间和主播排班</span></div>
         <div class="step"><b>4</b><span>数据先进实时表，确认后再导出</span></div>
       </section>
 
-      <label class="field">
-        <span>直播大屏地址</span>
-        <input id="urlInput" />
-      </label>
+      <section class="settings block">
+        <div class="block-title">入口</div>
+        <label class="field">
+          <span>直播大屏地址</span>
+          <input id="urlInput" />
+        </label>
+        <div class="actions">
+          <button id="openBtn">打开直播大屏</button>
+          <button id="exportBtn">导出表格</button>
+        </div>
+        <div class="path" id="outputPath">采集后点击导出表格选择保存位置</div>
+      </section>
 
-      <div class="actions">
-        <button id="openBtn">打开直播大屏</button>
-        <button id="exportBtn">导出表格</button>
-      </div>
-
-      <div class="path" id="outputPath">采集后点击导出表格选择保存位置</div>
-
-      <section class="settings">
+      <section class="settings block">
+        <div class="block-title">采集设置</div>
         <label class="field compact">
           <span>采集间隔</span>
           <select id="intervalSelect">
@@ -48,7 +52,7 @@
         </label>
       </section>
 
-      <section class="settings">
+      <section class="settings block">
         <div class="setting-head">
           <div class="setting-title">主播排班</div>
           <button id="addHostBtn" class="small" type="button">添加</button>
@@ -70,12 +74,21 @@
 
     <main class="browser">
       <section class="web-panel">
-        <div id="tabBar" class="tabs"></div>
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">browser</div>
+            <h2>千川页面</h2>
+          </div>
+          <div id="tabBar" class="tabs"></div>
+        </div>
         <div id="webviewHost" class="webview-host"></div>
       </section>
       <section class="data-panel">
         <div class="data-head">
-          <h2>实时登记数据</h2>
+          <div>
+            <div class="eyebrow">database</div>
+            <h2>实时登记数据</h2>
+          </div>
           <span id="rowCount">0 条</span>
         </div>
         <div class="table-wrap">
