@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>千川直播大屏采集工具</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <aside class="panel">
+      <header>
+        <div class="eyebrow">直播数据采集</div>
+        <h1>千川直播大屏采集工具</h1>
+      </header>
+
+      <section class="steps">
+        <div class="step"><b>1</b><span>登录千川账号</span></div>
+        <div class="step"><b>2</b><span>进入直播大屏页面</span></div>
+        <div class="step"><b>3</b><span>填下播时间和主播排班</span></div>
+        <div class="step"><b>4</b><span>点击开始，先写当前数据，再按 0/5/10/15 分自动采集</span></div>
+      </section>
+
+      <label class="field">
+        <span>直播大屏地址</span>
+        <input id="urlInput" />
+      </label>
+
+      <div class="actions">
+        <button id="openBtn">打开直播大屏</button>
+        <button id="chooseBtn">选择保存位置</button>
+      </div>
+
+      <div class="path" id="outputPath">还未选择保存位置</div>
+
+      <section class="settings">
+        <label class="field compact">
+          <span>下播时间</span>
+          <input id="liveEndInput" type="time" value="15:00" />
+        </label>
+      </section>
+
+      <section class="settings">
+        <div class="setting-head">
+          <div class="setting-title">主播排班</div>
+          <button id="addHostBtn" class="small" type="button">添加</button>
+        </div>
+        <div id="hostRows" class="host-rows"></div>
+      </section>
+
+      <div class="actions">
+        <button id="startBtn" class="primary">开始采集</button>
+        <button id="stopBtn">停止</button>
+      </div>
+
+      <dl class="status">
+        <div><dt>状态</dt><dd id="statusText">等待操作</dd></div>
+        <div><dt>下一次采集</dt><dd id="nextText">-</dd></div>
+        <div><dt>最近结果</dt><dd id="lastText">-</dd></div>
+      </dl>
+    </aside>
+
+    <main class="browser">
+      <webview id="qianchuanView" partition="persist:qianchuan-live-board"></webview>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "qianchuan-live-board-tool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "千川直播大屏采集工具",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "pack:win": "electron-builder --win --x64 --publish never",
+    "pack:mac": "electron-builder --mac --arm64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.liuxiaoyu.qianchuan.liveboard",
+    "productName": "千川直播大屏采集工具",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
+}
