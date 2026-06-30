@@ -16,8 +16,8 @@
       <section class="steps">
         <div class="step"><b>1</b><span>登录千川账号</span></div>
         <div class="step"><b>2</b><span>进入直播大屏页面</span></div>
-        <div class="step"><b>3</b><span>填下播时间和主播排班</span></div>
-        <div class="step"><b>4</b><span>点击开始，先写当前数据，再按 0/5/10/15 分自动采集</span></div>
+        <div class="step"><b>3</b><span>设置采集间隔、下播时间和主播排班</span></div>
+        <div class="step"><b>4</b><span>数据先进实时表，确认后再导出</span></div>
       </section>
 
       <label class="field">
@@ -27,12 +27,21 @@
 
       <div class="actions">
         <button id="openBtn">打开直播大屏</button>
-        <button id="chooseBtn">选择保存位置</button>
+        <button id="exportBtn">导出表格</button>
       </div>
 
-      <div class="path" id="outputPath">还未选择保存位置</div>
+      <div class="path" id="outputPath">采集后点击导出表格选择保存位置</div>
 
       <section class="settings">
+        <label class="field compact">
+          <span>采集间隔</span>
+          <select id="intervalSelect">
+            <option value="5">5分钟</option>
+            <option value="15">15分钟</option>
+            <option value="30">30分钟</option>
+            <option value="60">1小时</option>
+          </select>
+        </label>
         <label class="field compact">
           <span>下播时间</span>
           <input id="liveEndInput" type="time" value="15:00" />
@@ -60,8 +69,34 @@
     </aside>
 
     <main class="browser">
-      <div id="tabBar" class="tabs"></div>
-      <div id="webviewHost" class="webview-host"></div>
+      <section class="web-panel">
+        <div id="tabBar" class="tabs"></div>
+        <div id="webviewHost" class="webview-host"></div>
+      </section>
+      <section class="data-panel">
+        <div class="data-head">
+          <h2>实时登记数据</h2>
+          <span id="rowCount">0 条</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>时段</th>
+                <th>主播</th>
+                <th>净成交订单数</th>
+                <th>净成交金额</th>
+                <th>整体消耗</th>
+                <th>商品点击率</th>
+                <th>商品转化率</th>
+              </tr>
+            </thead>
+            <tbody id="dataBody">
+              <tr><td colspan="7">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
     <script src="./renderer.js"></script>

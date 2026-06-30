@@ -89,56 +89,14 @@ function csvEscape(value) {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-function appendCsv(file, headers, row) {
-  const exists = fs.existsSync(file);
-  if (exists) {
-    const firstLine = fs.readFileSync(file, "utf8").replace(/^\ufeff/, "").split(/\r?\n/)[0] || "";
-    const expected = headers.map(csvEscape).join(",");
-    if (firstLine !== expected) {
-      const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-      const parsed = path.parse(file);
-      fs.renameSync(file, path.join(parsed.dir, `${parsed.name}_旧格式_${stamp}${parsed.ext}`));
-    }
-  }
-  if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, "\ufeff" + headers.map(csvEscape).join(",") + "\n", "utf8");
-  }
-  fs.appendFileSync(
+function writeCsv(file, headers, rows) {
+  fs.writeFileSync(
     file,
-    headers.map((header) => csvEscape(Object.hasOwn(row, header) ? row[header] : "")).join(",") + "\n",
+    "\ufeff" + headers.map(csvEscape).join(",") + "\n" + rows.map((row) =>
+      headers.map((header) => csvEscape(Object.hasOwn(row, header) ? row[header] : "")).join(",")
+    ).join("\n") + "\n",
     "utf8"
   );
-}
-
-function parseCsvLine(line) {
-  const cells = [];
-  let cell = "";
-  let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    if (quoted && ch === '"' && line[i + 1] === '"') {
-      cell += '"';
-      i += 1;
-    } else if (ch === '"') {
-      quoted = !quoted;
-    } else if (ch === "," && !quoted) {
-      cells.push(cell);
-      cell = "";
-    } else {
-      cell += ch;
-    }
-  }
-  cells.push(cell);
-  return cells;
-}
-
-function lastCsvRow(file) {
-  if (!fs.existsSync(file)) return null;
-  const lines = fs.readFileSync(file, "utf8").replace(/^\ufeff/, "").trim().split(/\r?\n/);
-  if (lines.length < 2) return null;
-  const headers = parseCsvLine(lines[0]);
-  const values = parseCsvLine(lines[lines.length - 1]);
-  return Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
 }
 
 function datePrefix(value = "") {
@@ -152,19 +110,6 @@ function datePrefix(value = "") {
 function datedName(name, dateText) {
   return `${datePrefix(dateText)}_${name}`;
 }
-
-ipcMain.handle("choose-output-dir", async () => {
-  const result = await dialog.showOpenDialog({
-    title: "选择表格保存位置",
-    properties: ["openDirectory", "createDirectory"]
-  });
-  if (result.canceled || !result.filePaths[0]) return "";
-  return result.filePaths[0];
-});
-
-ipcMain.handle("get-last-cumulative", async (_event, outputDir) => {
-  return lastCsvRow(path.join(outputDir, datedName(cumulativeName)));
-});
 
 ipcMain.handle("read-board-text", async () => {
   let best = { text: "", url: "" };
@@ -190,19 +135,22 @@ ipcMain.handle("read-board-text", async () => {
   return best;
 });
 
-ipcMain.handle("save-capture", async (_event, payload) => {
-  const outputDir = payload.outputDir;
-  fs.mkdirSync(outputDir, { recursive: true });
-  const dateText = payload.cumulative && payload.cumulative["采集时间"];
+ipcMain.handle("export-data", async (_event, payload) => {
+  const result = await dialog.showOpenDialog({
+    title: "选择表格导出位置",
+    properties: ["openDirectory", "createDirectory"]
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+
+  const outputDir = result.filePaths[0];
+  const dateText = payload.cumulativeRows && payload.cumulativeRows[0] && payload.cumulativeRows[0]["采集时间"];
   const cumulativeFile = path.join(outputDir, datedName(cumulativeName, dateText));
   const intervalFile = path.join(outputDir, datedName(intervalName, dateText));
   const rawFile = path.join(outputDir, datedName(rawName, dateText));
 
-  appendCsv(cumulativeFile, ["采集时间", "主播", ...outputMetrics], payload.cumulative);
-  if (payload.interval) {
-    appendCsv(intervalFile, ["时段开始", "时段结束", "主播", ...outputMetrics], payload.interval);
-  }
-  fs.appendFileSync(rawFile, JSON.stringify(payload.log, null, 0) + "\n", "utf8");
+  writeCsv(cumulativeFile, ["采集时间", "主播", ...outputMetrics], payload.cumulativeRows || []);
+  writeCsv(intervalFile, ["时段开始", "时段结束", "主播", ...outputMetrics], payload.intervalRows || []);
+  fs.writeFileSync(rawFile, (payload.logs || []).map((item) => JSON.stringify(item)).join("\n") + "\n", "utf8");
   return { cumulativeFile, intervalFile, rawFile };
 });
 

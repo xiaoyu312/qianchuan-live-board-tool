@@ -78,10 +78,12 @@ const outputPath = document.getElementById("outputPath");
 const statusText = document.getElementById("statusText");
 const nextText = document.getElementById("nextText");
 const lastText = document.getElementById("lastText");
+const intervalSelect = document.getElementById("intervalSelect");
 const liveEndInput = document.getElementById("liveEndInput");
 const hostRows = document.getElementById("hostRows");
+const dataBody = document.getElementById("dataBody");
+const rowCount = document.getElementById("rowCount");
 
-let outputDir = "";
 let running = false;
 let timer = null;
 let previousRow = null;
@@ -89,6 +91,9 @@ let stopAt = null;
 let activeTabId = "";
 let tabSeq = 0;
 const tabs = new Map();
+const cumulativeRows = [];
+const intervalRows = [];
+const logs = [];
 
 urlInput.value = defaultUrl;
 
@@ -307,6 +312,10 @@ function percentText(a, b) {
   return value === "" ? "" : `${value.toFixed(2)}%`;
 }
 
+function captureInterval() {
+  return Number(intervalSelect.value) || 5;
+}
+
 function format(metric, value) {
   if (value === "" || value == null) return "";
   if (snapshotMetrics.has(metric)) return String(value);
@@ -347,8 +356,9 @@ function nextAlignedDate() {
   const now = new Date();
   const next = new Date(now);
   next.setSeconds(0, 0);
-  const remainder = next.getMinutes() % 5;
-  const add = remainder === 0 ? 5 : 5 - remainder;
+  const minutes = captureInterval();
+  const remainder = next.getMinutes() % minutes;
+  const add = remainder === 0 ? minutes : minutes - remainder;
   next.setMinutes(next.getMinutes() + add);
   return next;
 }
@@ -387,23 +397,42 @@ async function capture(scheduledAt) {
   }
 
   const interval = buildInterval(previousRow, current, current["主播"]);
-  const result = await window.qianchuanApp.saveCapture({
-    outputDir,
-    cumulative: current,
-    interval,
-    log: {
-      captured_at: current["采集时间"],
-      anchor: current["主播"],
-      live_end: formatDate(end),
-      status: missing.length ? "partial" : "full",
-      missing_metrics: missing,
-      source_url: sourceUrl
-    }
-  });
+  const log = {
+    captured_at: current["采集时间"],
+    anchor: current["主播"],
+    live_end: formatDate(end),
+    status: missing.length ? "partial" : "full",
+    missing_metrics: missing,
+    source_url: sourceUrl
+  };
+  cumulativeRows.push(current);
+  if (interval) intervalRows.push(interval);
+  logs.push(log);
   previousRow = current;
   lastText.textContent = missing.length ? `缺失 ${missing.length} 项：${missing.join("、")}` : "36 项完整";
-  statusText.textContent = `已写入：${result.cumulativeFile}`;
+  statusText.textContent = "已登记到实时表";
+  renderData();
   return true;
+}
+
+function renderData() {
+  const rows = intervalRows.length ? intervalRows : cumulativeRows;
+  rowCount.textContent = `${rows.length} 条`;
+  if (!rows.length) {
+    dataBody.innerHTML = '<tr><td colspan="7">暂无数据</td></tr>';
+    return;
+  }
+  dataBody.innerHTML = rows.slice(-100).reverse().map((row) => `
+    <tr>
+      <td>${row["时段开始"] ? `${row["时段开始"]} - ${row["时段结束"]}` : row["采集时间"]}</td>
+      <td>${row["主播"] || ""}</td>
+      <td>${row["净成交订单数"] || ""}</td>
+      <td>${row["净成交金额(元)"] || ""}</td>
+      <td>${row["整体消耗(元)"] || ""}</td>
+      <td>${row["商品点击率"] || ""}</td>
+      <td>${row["商品转化率"] || ""}</td>
+    </tr>
+  `).join("");
 }
 
 function scheduleNext() {
@@ -430,27 +459,13 @@ document.getElementById("openBtn").addEventListener("click", () => {
   createTab(urlInput.value || defaultUrl);
 });
 
-document.getElementById("chooseBtn").addEventListener("click", async () => {
-  const selected = await window.qianchuanApp.chooseOutputDir();
-  if (!selected) return;
-  outputDir = selected;
-  outputPath.textContent = selected;
-  const lastRow = await window.qianchuanApp.getLastCumulative(outputDir);
-  previousRow = canUsePrevious(lastRow) ? lastRow : null;
-});
-
 document.getElementById("startBtn").addEventListener("click", async () => {
-  if (!outputDir) {
-    statusText.textContent = "请先选择保存位置";
-    return;
-  }
   stopAt = configuredEnd(new Date());
   if (!stopAt) {
     statusText.textContent = "请填写下播时间";
     return;
   }
-  const lastRow = previousRow || await window.qianchuanApp.getLastCumulative(outputDir);
-  previousRow = canUsePrevious(lastRow) ? lastRow : null;
+  previousRow = canUsePrevious(previousRow) ? previousRow : null;
   running = true;
   if (timer) clearTimeout(timer);
   const now = new Date();
@@ -472,3 +487,14 @@ document.getElementById("stopBtn").addEventListener("click", () => {
 });
 
 document.getElementById("addHostBtn").addEventListener("click", () => addHostRow());
+
+document.getElementById("exportBtn").addEventListener("click", async () => {
+  if (!cumulativeRows.length) {
+    statusText.textContent = "暂无可导出数据";
+    return;
+  }
+  const result = await window.qianchuanApp.exportData({ cumulativeRows, intervalRows, logs });
+  if (!result) return;
+  outputPath.textContent = result.cumulativeFile;
+  statusText.textContent = "表格已导出";
+});

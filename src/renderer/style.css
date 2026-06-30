@@ -67,7 +67,8 @@ h1 {
   font-weight: 700;
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1px solid #cdd6e3;
   border-radius: 6px;
@@ -189,8 +190,14 @@ dd {
 .browser {
   min-width: 0;
   display: grid;
-  grid-template-rows: 42px 1fr;
+  grid-template-rows: minmax(420px, 1fr) 280px;
   background: #eef3fb;
+}
+
+.web-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 42px 1fr;
 }
 
 .tabs {
@@ -247,4 +254,55 @@ webview {
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.data-panel {
+  min-height: 0;
+  border-top: 1px solid #d8e0ec;
+  background: #ffffff;
+  display: grid;
+  grid-template-rows: 44px 1fr;
+}
+
+.data-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5ebf5;
+}
+
+.data-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.data-head span {
+  color: #6a7483;
+  font-size: 13px;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf1f7;
+  white-space: nowrap;
+  text-align: left;
+}
+
+th {
+  color: #5f6876;
+  background: #f8fbff;
+  position: sticky;
+  top: 0;
 }
