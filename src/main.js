@@ -2,6 +2,14 @@ const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
+process.on("uncaughtException", (error) => {
+  if (String(error && error.message).includes("Render frame was disposed before WebFrameMain could be accessed")) {
+    console.warn(error.message);
+    return;
+  }
+  throw error;
+});
+
 const metrics = [
   "净成交订单数",
   "净成交订单成本(元)",

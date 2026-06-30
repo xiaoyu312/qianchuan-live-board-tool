@@ -87,12 +87,21 @@ let previousRow = null;
 let stopAt = null;
 
 urlInput.value = defaultUrl;
-view.setAttribute("preload", window.qianchuanApp.webviewPreloadUrl);
 view.src = defaultUrl;
 
 view.addEventListener("new-window", (event) => {
   event.preventDefault();
   if (event.url) view.src = event.url;
+});
+view.addEventListener("did-start-loading", () => {
+  statusText.textContent = "网页加载中";
+});
+view.addEventListener("did-finish-load", () => {
+  if (!running) statusText.textContent = "网页已加载";
+});
+view.addEventListener("did-fail-load", (event) => {
+  if (event.errorCode === -3) return;
+  statusText.textContent = `网页加载失败：${event.errorDescription || event.errorCode}`;
 });
 
 function addHostRow(start = "", end = "", name = "") {
