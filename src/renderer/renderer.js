@@ -71,7 +71,8 @@ const snapshotMetrics = new Set([
   "点赞率"
 ]);
 
-const view = document.getElementById("qianchuanView");
+const tabBar = document.getElementById("tabBar");
+const webviewHost = document.getElementById("webviewHost");
 const urlInput = document.getElementById("urlInput");
 const outputPath = document.getElementById("outputPath");
 const statusText = document.getElementById("statusText");
@@ -85,24 +86,78 @@ let running = false;
 let timer = null;
 let previousRow = null;
 let stopAt = null;
+let activeTabId = "";
+let tabSeq = 0;
+const tabs = new Map();
 
 urlInput.value = defaultUrl;
-view.src = defaultUrl;
 
-view.addEventListener("new-window", (event) => {
-  event.preventDefault();
-  if (event.url) view.src = event.url;
-});
-view.addEventListener("did-start-loading", () => {
-  statusText.textContent = "网页加载中";
-});
-view.addEventListener("did-finish-load", () => {
-  if (!running) statusText.textContent = "网页已加载";
-});
-view.addEventListener("did-fail-load", (event) => {
-  if (event.errorCode === -3) return;
-  statusText.textContent = `网页加载失败：${event.errorDescription || event.errorCode}`;
-});
+function renderTabs() {
+  tabBar.innerHTML = "";
+  for (const [id, tab] of tabs) {
+    const item = document.createElement("div");
+    item.className = `tab${id === activeTabId ? " active" : ""}`;
+    item.innerHTML = `<span>${tab.title}</span>${tabs.size > 1 ? "<button type=\"button\">×</button>" : ""}`;
+    item.addEventListener("click", (event) => {
+      if (event.target.tagName === "BUTTON") {
+        closeTab(id);
+        return;
+      }
+      activateTab(id);
+    });
+    tabBar.appendChild(item);
+  }
+}
+
+function activateTab(id) {
+  activeTabId = id;
+  for (const [tabId, tab] of tabs) tab.view.style.display = tabId === id ? "flex" : "none";
+  renderTabs();
+}
+
+function closeTab(id) {
+  const tab = tabs.get(id);
+  if (!tab || tabs.size <= 1) return;
+  tab.view.remove();
+  tabs.delete(id);
+  if (activeTabId === id) activateTab(tabs.keys().next().value);
+  else renderTabs();
+}
+
+function createTab(url, title = "千川") {
+  const id = `tab-${++tabSeq}`;
+  const view = document.createElement("webview");
+  view.src = url;
+  view.setAttribute("partition", "persist:qianchuan-live-board");
+  view.setAttribute("allowpopups", "");
+  view.addEventListener("new-window", (event) => {
+    event.preventDefault();
+    if (event.url) createTab(event.url, "新页面");
+  });
+  view.addEventListener("page-title-updated", (event) => {
+    const tab = tabs.get(id);
+    if (tab && event.title) {
+      tab.title = event.title;
+      renderTabs();
+    }
+  });
+  view.addEventListener("did-start-loading", () => {
+    statusText.textContent = "网页加载中";
+  });
+  view.addEventListener("did-finish-load", () => {
+    if (!running) statusText.textContent = "网页已加载";
+  });
+  view.addEventListener("did-fail-load", (event) => {
+    if (event.errorCode === -3) return;
+    statusText.textContent = `网页加载失败：${event.errorDescription || event.errorCode}`;
+  });
+  webviewHost.appendChild(view);
+  tabs.set(id, { title, view });
+  activateTab(id);
+}
+
+window.qianchuanApp.onOpenTab((url) => createTab(url, "新页面"));
+createTab(defaultUrl);
 
 function addHostRow(start = "", end = "", name = "") {
   const row = document.createElement("div");
@@ -304,14 +359,14 @@ function formatDate(date) {
 }
 
 async function collectCurrent(scheduledAt) {
-  const text = await view.executeJavaScript("document.body ? document.body.innerText : ''", true);
-  const values = parseBoardText(text);
+  const board = await window.qianchuanApp.readBoardText();
+  const values = parseBoardText(board.text);
   const current = { "采集时间": formatDate(scheduledAt), "主播": hostFor(scheduledAt) };
   for (const metric of metrics) current[metric] = values[metric] || "";
   current["商品点击率"] = percentText(number(current["直播间商品点击次数"]), number(current["直播间商品曝光次数"]));
   current["商品转化率"] = percentText(number(current["净成交订单数"]), number(current["直播间商品点击次数"]));
   const missing = metrics.filter((metric) => !current[metric]);
-  return { current, missing };
+  return { current, missing, sourceUrl: board.url || "" };
 }
 
 async function capture(scheduledAt) {
@@ -321,7 +376,7 @@ async function capture(scheduledAt) {
     return false;
   }
 
-  const { current, missing } = await collectCurrent(scheduledAt);
+  const { current, missing, sourceUrl } = await collectCurrent(scheduledAt);
   if (scheduledAt >= end && metricsUnchanged(previousRow, current)) {
     running = false;
     if (timer) clearTimeout(timer);
@@ -342,7 +397,7 @@ async function capture(scheduledAt) {
       live_end: formatDate(end),
       status: missing.length ? "partial" : "full",
       missing_metrics: missing,
-      source_url: view.getURL()
+      source_url: sourceUrl
     }
   });
   previousRow = current;
@@ -372,7 +427,7 @@ function scheduleNext() {
 }
 
 document.getElementById("openBtn").addEventListener("click", () => {
-  view.src = urlInput.value || defaultUrl;
+  createTab(urlInput.value || defaultUrl);
 });
 
 document.getElementById("chooseBtn").addEventListener("click", async () => {

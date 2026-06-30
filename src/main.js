@@ -1,10 +1,9 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, webContents } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
 process.on("uncaughtException", (error) => {
   if (String(error && error.message).includes("Render frame was disposed before WebFrameMain could be accessed")) {
-    console.warn(error.message);
     return;
   }
   throw error;
@@ -73,6 +72,17 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 }
+
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(String(url || ""))) {
+      const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+      if (win && !win.isDestroyed()) win.webContents.send("open-tab", url);
+      return { action: "deny" };
+    }
+    return { action: "allow" };
+  });
+});
 
 function csvEscape(value) {
   const text = value == null ? "" : String(value);
@@ -154,6 +164,30 @@ ipcMain.handle("choose-output-dir", async () => {
 
 ipcMain.handle("get-last-cumulative", async (_event, outputDir) => {
   return lastCsvRow(path.join(outputDir, datedName(cumulativeName)));
+});
+
+ipcMain.handle("read-board-text", async () => {
+  let best = { text: "", url: "" };
+  let bestScore = -1;
+  for (const contents of webContents.getAllWebContents()) {
+    if (contents.isDestroyed()) continue;
+    try {
+      const result = await contents.executeJavaScript(
+        "({ text: document.body ? document.body.innerText : '', url: location.href })",
+        true
+      );
+      const text = result && result.text ? result.text : "";
+      const url = result && result.url ? result.url : "";
+      const score = metrics.filter((metric) => text.includes(metric)).length + (url.includes("qianchuan") ? 1 : 0);
+      if (score > bestScore) {
+        best = { text, url };
+        bestScore = score;
+      }
+    } catch (_error) {
+      // Page changed while reading; next 5-minute tick will read the settled page.
+    }
+  }
+  return best;
 });
 
 ipcMain.handle("save-capture", async (_event, payload) => {
