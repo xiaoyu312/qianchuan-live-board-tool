@@ -147,9 +147,13 @@ ipcMain.handle("export-data", async (_event, payload) => {
   const cumulativeFile = path.join(outputDir, datedName(cumulativeName, dateText));
   const intervalFile = path.join(outputDir, datedName(intervalName, dateText));
   const rawFile = path.join(outputDir, datedName(rawName, dateText));
+  const exportedIntervalRows = (payload.intervalRows || []).map((row) => ({
+    ...row,
+    "截止时间": row["时段结束"] || ""
+  }));
 
   writeCsv(cumulativeFile, ["采集时间", "主播", ...outputMetrics], payload.cumulativeRows || []);
-  writeCsv(intervalFile, ["时段开始", "时段结束", "主播", ...outputMetrics], payload.intervalRows || []);
+  writeCsv(intervalFile, ["截止时间", "主播", ...outputMetrics], exportedIntervalRows);
   fs.writeFileSync(rawFile, (payload.logs || []).map((item) => JSON.stringify(item)).join("\n") + "\n", "utf8");
   return { cumulativeFile, intervalFile, rawFile };
 });

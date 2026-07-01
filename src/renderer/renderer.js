@@ -79,7 +79,6 @@ const statusText = document.getElementById("statusText");
 const nextText = document.getElementById("nextText");
 const lastText = document.getElementById("lastText");
 const intervalSelect = document.getElementById("intervalSelect");
-const liveEndInput = document.getElementById("liveEndInput");
 const hostRows = document.getElementById("hostRows");
 const dataHead = document.getElementById("dataHead");
 const dataBody = document.getElementById("dataBody");
@@ -94,7 +93,6 @@ const warningPanel = document.querySelector(".warning-panel");
 let running = false;
 let timer = null;
 let previousRow = null;
-let stopAt = null;
 let activeTabId = "";
 let tabSeq = 0;
 const tabs = new Map();
@@ -246,15 +244,17 @@ function norm(value) {
 }
 
 const labelMap = Object.fromEntries(metrics.map((metric) => [norm(metric), metric]));
-const valueRe = /^(?:--|-|[0-9][0-9,]*(?:\.[0-9]+)?%?|[0-9]+分[0-9]+秒)$/;
-const timeRe = /[0-9]+分[0-9]+秒/;
+const valueRe = /^(?:--|-|[0-9][0-9,]*(?:\.[0-9]+)?%?|(?:[0-9]+分)?[0-9]+秒)$/;
+const timeRe = /(?:[0-9]+分)?[0-9]+秒/;
 
 function isValue(value) {
   return valueRe.test(clean(value));
 }
 
-function valueAfter(lines, start) {
+function valueAfter(lines, start, metric = "") {
   const parts = [];
+  let fallbackSeconds = "";
+  let fallbackPercent = "";
   for (const candidate of lines.slice(start, start + 8)) {
     if (labelMap[norm(candidate)]) break;
     const text = clean(candidate);
@@ -263,9 +263,19 @@ function valueAfter(lines, start) {
     const joined = parts.join("");
     const time = joined.match(timeRe);
     if (time) return time[0];
+    if (metric.includes("率")) {
+      const percent = joined.match(/[0-9][0-9,]*(?:\.[0-9]+)?%/);
+      if (percent) return percent[0];
+      if (!fallbackPercent && /^[0-9][0-9,]*(?:\.[0-9]+)?$/.test(text)) fallbackPercent = `${text}%`;
+      continue;
+    }
+    if (metric === "直播间平均停留时长(整场)") {
+      if (!fallbackSeconds && /^[0-9][0-9,]*(?:\.[0-9]+)?$/.test(text)) fallbackSeconds = `${text}秒`;
+      continue;
+    }
     if (isValue(text)) return text;
   }
-  return "";
+  return fallbackPercent || fallbackSeconds;
 }
 
 function parseBoardText(text) {
@@ -274,7 +284,7 @@ function parseBoardText(text) {
   lines.forEach((line, index) => {
     const metric = labelMap[norm(line)];
     if (!metric) return;
-    const value = valueAfter(lines, index + 1);
+    const value = valueAfter(lines, index + 1, metric);
     if (value) row[metric] = value;
   });
   return row;
@@ -302,22 +312,6 @@ function isMinuteInRange(minute, start, end) {
   if (start === end) return true;
   if (end > start) return minute >= start && minute < end;
   return minute >= start || minute < end;
-}
-
-function dateAtTime(base, timeValue) {
-  const minutes = minutesFromTime(timeValue);
-  if (minutes == null) return null;
-  const date = new Date(base);
-  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return date;
-}
-
-function configuredEnd(reference = new Date()) {
-  return dateAtTime(reference, liveEndInput.value);
-}
-
-function activeEnd(reference = new Date()) {
-  return stopAt || configuredEnd(reference);
 }
 
 function readHostSchedule() {
@@ -376,9 +370,13 @@ function captureInterval() {
 
 function format(metric, value) {
   if (value === "" || value == null) return "";
-  if (snapshotMetrics.has(metric)) return String(value);
+  if (metric.includes("率")) {
+    const parsed = typeof value === "number" ? value : number(value);
+    return parsed == null ? String(value) : `${parsed.toFixed(2)}%`;
+  }
   if (typeof value === "string") return value;
-  if (metric.includes("率") || metric.includes("ROI") || metric.includes("GPM") || metric.includes("成本") || metric.includes("金额") || metric.includes("消耗")) return value.toFixed(2);
+  if (snapshotMetrics.has(metric)) return String(value);
+  if (metric.includes("ROI") || metric.includes("GPM") || metric.includes("成本") || metric.includes("金额") || metric.includes("消耗")) return value.toFixed(2);
   return Math.abs(value - Math.round(value)) < 0.000001 ? String(Math.round(value)) : value.toFixed(2);
 }
 
@@ -418,7 +416,7 @@ function displayRows() {
     rows.push({ ...cumulativeRows[0], "数据类型": "开场累计", "时段": cumulativeRows[0]["采集时间"] });
   }
   for (const row of intervalRows) {
-    rows.push({ ...row, "时段": `${row["时段开始"]} - ${row["时段结束"]}` });
+    rows.push({ ...row, "时段": row["时段结束"] });
   }
   return rows;
 }
@@ -481,27 +479,11 @@ async function collectCurrent(scheduledAt) {
 }
 
 async function capture(scheduledAt) {
-  const end = activeEnd(scheduledAt);
-  if (!end) {
-    statusText.textContent = "请填写下播时间";
-    return false;
-  }
-
   const { current, missing, sourceUrl } = await collectCurrent(scheduledAt);
-  if (scheduledAt >= end && metricsUnchanged(previousRow, current)) {
-    running = false;
-    if (timer) clearTimeout(timer);
-    nextText.textContent = "-";
-    statusText.textContent = `直播已结束，且最近 ${captureInterval()} 分钟数据没有变化，已自动停止`;
-    lastText.textContent = "未写入重复行";
-    return false;
-  }
-
   const interval = buildInterval(previousRow, current, current["主播"]);
   const log = {
     captured_at: current["采集时间"],
     anchor: current["主播"],
-    live_end: formatDate(end),
     status: missing.length ? "partial" : "full",
     missing_metrics: missing,
     source_url: sourceUrl
@@ -550,11 +532,6 @@ function renderWarnings() {
 
 function scheduleNext() {
   if (!running) return;
-  if (!activeEnd()) {
-    statusText.textContent = "请填写下播时间";
-    running = false;
-    return;
-  }
   const next = nextAlignedDate();
   nextText.textContent = formatDate(next);
   const delay = Math.max(0, next.getTime() - Date.now());
@@ -580,11 +557,6 @@ document.getElementById("refreshPageBtn").addEventListener("click", () => {
 });
 
 document.getElementById("startBtn").addEventListener("click", async () => {
-  stopAt = configuredEnd(new Date());
-  if (!stopAt) {
-    statusText.textContent = "请填写下播时间";
-    return;
-  }
   previousRow = canUsePrevious(previousRow) ? previousRow : null;
   running = true;
   if (timer) clearTimeout(timer);
@@ -600,7 +572,6 @@ document.getElementById("startBtn").addEventListener("click", async () => {
 
 document.getElementById("stopBtn").addEventListener("click", () => {
   running = false;
-  stopAt = null;
   if (timer) clearTimeout(timer);
   statusText.textContent = "已停止";
   nextText.textContent = "-";
