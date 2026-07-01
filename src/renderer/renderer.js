@@ -100,11 +100,26 @@ const logs = [];
 const calculatedMetrics = ["商品点击率", "商品转化率"];
 const tableHeaders = ["数据类型", "时段", "主播", ...metrics, ...calculatedMetrics];
 const alertRules = [
-  { title: "进入率掉了", metric: "曝光观看率(次数)", min: 5, drop: 25 },
-  { title: "商品点击率掉了", metric: "商品点击率", min: 3, drop: 25 },
-  { title: "商品转化率掉了", metric: "商品转化率", min: 1, drop: 40 },
-  { title: "观看成交转化率掉了", metric: "观看成交转化率", min: 1, drop: 30 }
+  { title: "进入率掉了", metric: "曝光观看率(次数)", key: "进入率", drop: 25 },
+  { title: "商品点击率掉了", metric: "商品点击率", key: "商品点击率", drop: 25 },
+  { title: "商品转化率掉了", metric: "商品转化率", key: "商品转化率", drop: 40 },
+  { title: "观看成交转化率掉了", metric: "观看成交转化率", key: "观看成交转化率", drop: 30 }
 ];
+const alertBenchmarks = {
+  overall: { "进入率": 5.95, "商品点击率": 21.17, "商品转化率": 5.0, "观看成交转化率": 0.99 },
+  anchors: {
+    "娟娟": { "进入率": 5.74, "商品点击率": 21.83, "商品转化率": 4.0, "观看成交转化率": 0.9 },
+    "小新": { "进入率": 5.99, "商品点击率": 21.6, "商品转化率": 5.33, "观看成交转化率": 1.09 },
+    "小鱼": { "进入率": 6.05, "商品点击率": 12.11, "商品转化率": 4.12, "观看成交转化率": 0.31 },
+    "春玉": { "进入率": 5.79, "商品点击率": 21.7, "商品转化率": 4.6, "观看成交转化率": 0.83 },
+    "橙子": { "进入率": 5.88, "商品点击率": 21.98, "商品转化率": 5.56, "观看成交转化率": 1.18 },
+    "欣欣": { "进入率": 6.12, "商品点击率": 20.89, "商品转化率": 3.21, "观看成交转化率": 0.76 },
+    "琳琳": { "进入率": 6.37, "商品点击率": 19.15, "商品转化率": 4.55, "观看成交转化率": 0.84 },
+    "盼盼": { "进入率": 6.1, "商品点击率": 20.38, "商品转化率": 4.71, "观看成交转化率": 1.09 },
+    "美琪": { "进入率": 5.68, "商品点击率": 25.0, "商品转化率": 3.23, "观看成交转化率": 0.79 },
+    "麒麟": { "进入率": 6.19, "商品点击率": 24.34, "商品转化率": 4.12, "观看成交转化率": 1.05 }
+  }
+};
 
 urlInput.value = defaultUrl;
 dataHead.innerHTML = `<tr>${tableHeaders.map((header) => `<th>${header}</th>`).join("")}</tr>`;
@@ -371,6 +386,8 @@ function buildInterval(previous, current, anchorName) {
   row["整体支付ROI"] = format("整体支付ROI", divide(deltas["整体成交金额(元)"], deltas["整体消耗(元)"]));
   row["净成交ROI"] = format("净成交ROI", divide(deltas["净成交金额(元)"], deltas["整体消耗(元)"]));
   row["分享率"] = format("分享率", divide(deltas["分享次数"], deltas["直播间整体观看人数"], 100));
+  row["曝光观看率(次数)"] = format("曝光观看率(次数)", divide(deltas["直播间整体观看人数"], deltas["直播间整体曝光次数"], 100));
+  row["观看成交转化率"] = format("观看成交转化率", divide(deltas["净成交订单数"], deltas["直播间整体观看人数"], 100));
   return row;
 }
 
@@ -392,9 +409,10 @@ function buildWarnings() {
   return alertRules.flatMap((rule) => {
     const prev = number(previous[rule.metric]);
     const curr = number(current[rule.metric]);
+    const min = benchmarkFor(current["主播"], rule.key);
     if (prev == null || curr == null) return [];
-    if (prev < rule.min && curr < rule.min) {
-      return [{ ...rule, detail: `连续 2 个时段低于 ${rule.min}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
+    if (prev < min && curr < min) {
+      return [{ ...rule, detail: `连续 2 个时段低于参考线 ${min.toFixed(2)}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
     }
     if (prev > 0) {
       const drop = ((prev - curr) / prev) * 100;
@@ -402,6 +420,11 @@ function buildWarnings() {
     }
     return [];
   });
+}
+
+function benchmarkFor(anchor, key) {
+  const name = String(anchor || "").trim();
+  return (alertBenchmarks.anchors[name] && alertBenchmarks.anchors[name][key]) || alertBenchmarks.overall[key];
 }
 
 function nextAlignedDate() {
