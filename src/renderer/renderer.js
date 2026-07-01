@@ -406,20 +406,25 @@ function buildWarnings() {
   if (intervalRows.length < 2) return [];
   const previous = intervalRows[intervalRows.length - 2];
   const current = intervalRows[intervalRows.length - 1];
+  const period = `${periodText(previous)}；${periodText(current)}`;
   return alertRules.flatMap((rule) => {
     const prev = number(previous[rule.metric]);
     const curr = number(current[rule.metric]);
     const min = benchmarkFor(current["主播"], rule.key);
     if (prev == null || curr == null) return [];
     if (prev < min && curr < min) {
-      return [{ ...rule, detail: `连续 2 个时段低于参考线 ${min.toFixed(2)}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
+      return [{ ...rule, period, detail: `连续 2 个时段低于参考线 ${min.toFixed(2)}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
     }
     if (prev > 0) {
       const drop = ((prev - curr) / prev) * 100;
-      if (drop >= rule.drop) return [{ ...rule, detail: `较上一时段下降 ${drop.toFixed(1)}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
+      if (drop >= rule.drop) return [{ ...rule, period, detail: `较上一时段下降 ${drop.toFixed(1)}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
     }
     return [];
   });
+}
+
+function periodText(row) {
+  return `${row["时段开始"] || ""} - ${row["时段结束"] || ""}`;
 }
 
 function benchmarkFor(anchor, key) {
@@ -516,6 +521,7 @@ function renderWarnings() {
   warningBody.innerHTML = warnings.map((warning) => `
     <div class="warning-item">
       <b>${escapeHtml(warning.title)}</b>
+      <span>时间段：${escapeHtml(warning.period)}</span>
       <span>${escapeHtml(warning.metric)}：${escapeHtml(warning.detail)}</span>
     </div>
   `).join("");
