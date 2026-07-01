@@ -98,7 +98,21 @@ const cumulativeRows = [];
 const intervalRows = [];
 const logs = [];
 const calculatedMetrics = ["商品点击率", "商品转化率"];
-const tableHeaders = ["数据类型", "时段", "主播", ...metrics, ...calculatedMetrics];
+const primaryTableMetrics = [
+  "整体消耗(元)",
+  "整体支付ROI",
+  "整体成交金额(元)",
+  "净成交ROI",
+  "净成交金额(元)",
+  ...calculatedMetrics
+];
+const tableHeaders = [
+  "数据类型",
+  "时段",
+  "主播",
+  ...primaryTableMetrics,
+  ...metrics.filter((metric) => !primaryTableMetrics.includes(metric))
+];
 const alertRules = [
   { title: "进入率掉了", metric: "曝光观看率(次数)", key: "进入率", drop: 25 },
   { title: "商品点击率掉了", metric: "商品点击率", key: "商品点击率", drop: 25 },
