@@ -104,6 +104,9 @@ const primaryTableMetrics = [
   "整体成交金额(元)",
   "净成交ROI",
   "净成交金额(元)",
+  "直播间整体曝光次数",
+  "曝光观看率(次数)",
+  "直播间整体观看人数",
   ...calculatedMetrics
 ];
 const tableHeaders = [
