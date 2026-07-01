@@ -81,8 +81,11 @@ const lastText = document.getElementById("lastText");
 const intervalSelect = document.getElementById("intervalSelect");
 const liveEndInput = document.getElementById("liveEndInput");
 const hostRows = document.getElementById("hostRows");
+const dataHead = document.getElementById("dataHead");
 const dataBody = document.getElementById("dataBody");
 const rowCount = document.getElementById("rowCount");
+const warningBody = document.getElementById("warningBody");
+const warningCount = document.getElementById("warningCount");
 
 let running = false;
 let timer = null;
@@ -94,8 +97,17 @@ const tabs = new Map();
 const cumulativeRows = [];
 const intervalRows = [];
 const logs = [];
+const calculatedMetrics = ["商品点击率", "商品转化率"];
+const tableHeaders = ["数据类型", "时段", "主播", ...metrics, ...calculatedMetrics];
+const alertRules = [
+  { title: "进入率掉了", metric: "曝光观看率(次数)", min: 5, drop: 25 },
+  { title: "商品点击率掉了", metric: "商品点击率", min: 3, drop: 25 },
+  { title: "商品转化率掉了", metric: "商品转化率", min: 1, drop: 40 },
+  { title: "观看成交转化率掉了", metric: "观看成交转化率", min: 1, drop: 30 }
+];
 
 urlInput.value = defaultUrl;
+dataHead.innerHTML = `<tr>${tableHeaders.map((header) => `<th>${header}</th>`).join("")}</tr>`;
 
 function renderTabs() {
   tabBar.innerHTML = "";
@@ -181,6 +193,16 @@ addHostRow("08:00", "15:00", "");
 
 function clean(value) {
   return String(value ?? "").trim().replace(/，/g, ",").replace(/％/g, "%").replace(/\s+/g, "");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
 }
 
 function norm(value) {
@@ -326,7 +348,7 @@ function format(metric, value) {
 
 function buildInterval(previous, current, anchorName) {
   if (!previous) return null;
-  const row = { "时段开始": previous["采集时间"], "时段结束": current["采集时间"], "主播": anchorName || "" };
+  const row = { "数据类型": "时段数据", "时段开始": previous["采集时间"], "时段结束": current["采集时间"], "主播": anchorName || "" };
   const deltas = {};
   for (const metric of deltaMetrics) {
     const prev = number(previous[metric]);
@@ -350,6 +372,36 @@ function buildInterval(previous, current, anchorName) {
   row["净成交ROI"] = format("净成交ROI", divide(deltas["净成交金额(元)"], deltas["整体消耗(元)"]));
   row["分享率"] = format("分享率", divide(deltas["分享次数"], deltas["直播间整体观看人数"], 100));
   return row;
+}
+
+function displayRows() {
+  const rows = [];
+  if (cumulativeRows[0]) {
+    rows.push({ ...cumulativeRows[0], "数据类型": "开场累计", "时段": cumulativeRows[0]["采集时间"] });
+  }
+  for (const row of intervalRows) {
+    rows.push({ ...row, "时段": `${row["时段开始"]} - ${row["时段结束"]}` });
+  }
+  return rows;
+}
+
+function buildWarnings() {
+  if (intervalRows.length < 2) return [];
+  const previous = intervalRows[intervalRows.length - 2];
+  const current = intervalRows[intervalRows.length - 1];
+  return alertRules.flatMap((rule) => {
+    const prev = number(previous[rule.metric]);
+    const curr = number(current[rule.metric]);
+    if (prev == null || curr == null) return [];
+    if (prev < rule.min && curr < rule.min) {
+      return [{ ...rule, detail: `连续 2 个时段低于 ${rule.min}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
+    }
+    if (prev > 0) {
+      const drop = ((prev - curr) / prev) * 100;
+      if (drop >= rule.drop) return [{ ...rule, detail: `较上一时段下降 ${drop.toFixed(1)}%：${prev.toFixed(2)}% -> ${curr.toFixed(2)}%` }];
+    }
+    return [];
+  });
 }
 
 function nextAlignedDate() {
@@ -416,22 +468,33 @@ async function capture(scheduledAt) {
 }
 
 function renderData() {
-  const rows = intervalRows.length ? intervalRows : cumulativeRows;
+  const rows = displayRows();
   rowCount.textContent = `${rows.length} 条`;
   if (!rows.length) {
-    dataBody.innerHTML = '<tr><td colspan="7">暂无数据</td></tr>';
+    dataBody.innerHTML = `<tr><td colspan="${tableHeaders.length}">暂无数据</td></tr>`;
+    renderWarnings();
     return;
   }
   dataBody.innerHTML = rows.slice(-100).reverse().map((row) => `
     <tr>
-      <td>${row["时段开始"] ? `${row["时段开始"]} - ${row["时段结束"]}` : row["采集时间"]}</td>
-      <td>${row["主播"] || ""}</td>
-      <td>${row["净成交订单数"] || ""}</td>
-      <td>${row["净成交金额(元)"] || ""}</td>
-      <td>${row["整体消耗(元)"] || ""}</td>
-      <td>${row["商品点击率"] || ""}</td>
-      <td>${row["商品转化率"] || ""}</td>
+      ${tableHeaders.map((header) => `<td>${escapeHtml(row[header] || "")}</td>`).join("")}
     </tr>
+  `).join("");
+  renderWarnings();
+}
+
+function renderWarnings() {
+  const warnings = buildWarnings();
+  warningCount.textContent = `${warnings.length} 条`;
+  if (!warnings.length) {
+    warningBody.innerHTML = `<div class="empty-warning">${intervalRows.length < 2 ? "等待至少 2 个时段数据后开始判断。" : "当前核心指标未触发预警。"}</div>`;
+    return;
+  }
+  warningBody.innerHTML = warnings.map((warning) => `
+    <div class="warning-item">
+      <b>${escapeHtml(warning.title)}</b>
+      <span>${escapeHtml(warning.metric)}：${escapeHtml(warning.detail)}</span>
+    </div>
   `).join("");
 }
 

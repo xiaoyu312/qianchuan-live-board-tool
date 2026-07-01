@@ -93,21 +93,23 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>时段</th>
-                <th>主播</th>
-                <th>净成交订单数</th>
-                <th>净成交金额</th>
-                <th>整体消耗</th>
-                <th>商品点击率</th>
-                <th>商品转化率</th>
-              </tr>
-            </thead>
+            <thead id="dataHead"></thead>
             <tbody id="dataBody">
-              <tr><td colspan="7">暂无数据</td></tr>
+              <tr><td>暂无数据</td></tr>
             </tbody>
           </table>
+        </div>
+      </section>
+      <section class="warning-panel">
+        <div class="data-head">
+          <div>
+            <div class="eyebrow">warning</div>
+            <h2>预警</h2>
+          </div>
+          <span id="warningCount">0 条</span>
+        </div>
+        <div id="warningBody" class="warning-body">
+          <div class="empty-warning">等待至少 2 个时段数据后开始判断。</div>
         </div>
       </section>
     </main>

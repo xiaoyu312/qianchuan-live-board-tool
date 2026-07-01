@@ -262,13 +262,14 @@ dd {
   min-width: 0;
   padding: 18px;
   display: grid;
-  grid-template-rows: minmax(420px, 1fr) 300px;
+  grid-template-rows: minmax(320px, 1fr) minmax(280px, 34vh) 150px;
   gap: 14px;
   background: var(--background);
 }
 
 .web-panel,
-.data-panel {
+.data-panel,
+.warning-panel {
   min-height: 0;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -404,6 +405,47 @@ td {
 
 tbody tr:hover td {
   background: var(--surface2);
+}
+
+.warning-panel {
+  display: grid;
+  grid-template-rows: 60px 1fr;
+}
+
+.warning-body {
+  overflow: auto;
+  padding: 10px 14px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.empty-warning,
+.warning-item {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.empty-warning {
+  color: var(--text3);
+  background: var(--surface2);
+}
+
+.warning-item {
+  display: grid;
+  gap: 4px;
+  color: #4f0900;
+  background: #fef3f1;
+  border: 1px solid rgba(246, 73, 50, .22);
+}
+
+.warning-item b {
+  color: #f64932;
+}
+
+.warning-item span {
+  color: #615d59;
 }
 
 @media (max-width: 1180px) {
