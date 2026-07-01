@@ -262,8 +262,13 @@ dd {
   min-width: 0;
   padding: 18px;
   display: grid;
-  grid-template-rows: minmax(320px, 1fr) minmax(280px, 34vh) 150px;
-  gap: 14px;
+  grid-template-rows:
+    minmax(240px, var(--web-panel-height, 1fr))
+    12px
+    minmax(180px, var(--data-panel-height, 300px))
+    12px
+    minmax(120px, var(--warning-panel-height, 150px));
+  gap: 0;
   background: var(--background);
 }
 
@@ -297,6 +302,14 @@ dd {
   line-height: 1.2;
 }
 
+.browser-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .tabs {
   min-width: 0;
   display: flex;
@@ -304,6 +317,24 @@ dd {
   justify-content: flex-end;
   gap: 6px;
   overflow-x: auto;
+}
+
+.resize-handle {
+  display: grid;
+  place-items: center;
+  cursor: row-resize;
+}
+
+.resize-handle::before {
+  content: "";
+  width: 120px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface3);
+}
+
+.resize-handle:hover::before {
+  background: var(--text4);
 }
 
 .tab {

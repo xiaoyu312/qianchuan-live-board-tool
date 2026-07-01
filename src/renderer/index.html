@@ -79,10 +79,14 @@
             <div class="eyebrow">browser</div>
             <h2>千川页面</h2>
           </div>
-          <div id="tabBar" class="tabs"></div>
+          <div class="browser-actions">
+            <button id="refreshPageBtn" class="small" type="button">刷新</button>
+            <div id="tabBar" class="tabs"></div>
+          </div>
         </div>
         <div id="webviewHost" class="webview-host"></div>
       </section>
+      <div class="resize-handle" data-resize="web-data"></div>
       <section class="data-panel">
         <div class="data-head">
           <div>
@@ -100,6 +104,7 @@
           </table>
         </div>
       </section>
+      <div class="resize-handle" data-resize="data-warning"></div>
       <section class="warning-panel">
         <div class="data-head">
           <div>

@@ -86,6 +86,10 @@ const dataBody = document.getElementById("dataBody");
 const rowCount = document.getElementById("rowCount");
 const warningBody = document.getElementById("warningBody");
 const warningCount = document.getElementById("warningCount");
+const browserShell = document.querySelector(".browser");
+const webPanel = document.querySelector(".web-panel");
+const dataPanel = document.querySelector(".data-panel");
+const warningPanel = document.querySelector(".warning-panel");
 
 let running = false;
 let timer = null;
@@ -568,6 +572,13 @@ document.getElementById("openBtn").addEventListener("click", () => {
   createTab(urlInput.value || defaultUrl);
 });
 
+document.getElementById("refreshPageBtn").addEventListener("click", () => {
+  const tab = tabs.get(activeTabId);
+  if (!tab) return;
+  statusText.textContent = "正在刷新网页";
+  tab.view.reload();
+});
+
 document.getElementById("startBtn").addEventListener("click", async () => {
   stopAt = configuredEnd(new Date());
   if (!stopAt) {
@@ -607,3 +618,32 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
   outputPath.textContent = result.cumulativeFile;
   statusText.textContent = "表格已导出";
 });
+
+for (const handle of document.querySelectorAll(".resize-handle")) {
+  handle.addEventListener("pointerdown", (event) => {
+    const first = handle.dataset.resize === "web-data" ? webPanel : dataPanel;
+    const second = handle.dataset.resize === "web-data" ? dataPanel : warningPanel;
+    const startY = event.clientY;
+    const firstHeight = first.getBoundingClientRect().height;
+    const secondHeight = second.getBoundingClientRect().height;
+    handle.setPointerCapture(event.pointerId);
+    document.body.style.userSelect = "none";
+    const move = (moveEvent) => {
+      const delta = moveEvent.clientY - startY;
+      const nextFirst = firstHeight + delta;
+      const nextSecond = secondHeight - delta;
+      if (nextFirst < 120 || nextSecond < 120) return;
+      browserShell.style.setProperty(handle.dataset.resize === "web-data" ? "--web-panel-height" : "--data-panel-height", `${nextFirst}px`);
+      browserShell.style.setProperty(handle.dataset.resize === "web-data" ? "--data-panel-height" : "--warning-panel-height", `${nextSecond}px`);
+    };
+    const up = () => {
+      document.body.style.userSelect = "";
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
+  });
+}
